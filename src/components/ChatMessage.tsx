@@ -86,7 +86,41 @@ const markdownComponents = {
       );
     }
     return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">{children}</a>;
-  }
+  },
+  p: ({ children }: any) => (
+    <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>
+  ),
+  ul: ({ children }: any) => (
+    <ul className="list-disc list-outside pl-5 mb-3 last:mb-0 space-y-1.5 marker:text-primary">{children}</ul>
+  ),
+  ol: ({ children }: any) => (
+    <ol className="list-decimal list-outside pl-5 mb-3 last:mb-0 space-y-1.5 marker:text-primary">{children}</ol>
+  ),
+  li: ({ children }: any) => (
+    <li className="pl-1 leading-relaxed">{children}</li>
+  ),
+  h1: ({ children }: any) => (
+    <h1 className="text-xl font-black mt-5 mb-3 first:mt-0 text-white">{children}</h1>
+  ),
+  h2: ({ children }: any) => (
+    <h2 className="text-lg font-black mt-5 mb-2.5 first:mt-0 text-white">{children}</h2>
+  ),
+  h3: ({ children }: any) => (
+    <h3 className="text-base font-bold mt-4 mb-2 first:mt-0 text-white">{children}</h3>
+  ),
+  h4: ({ children }: any) => (
+    <h4 className="text-sm font-bold mt-3 mb-2 first:mt-0 text-white">{children}</h4>
+  ),
+  blockquote: ({ children }: any) => (
+    <blockquote className="border-l-2 border-primary/40 pl-4 my-3 italic text-white/70">{children}</blockquote>
+  ),
+  hr: () => <hr className="my-4 border-white/10" />,
+  strong: ({ children }: any) => <strong className="font-bold text-white">{children}</strong>,
+  table: ({ children }: any) => (
+    <div className="overflow-x-auto rounded-xl">
+      <table>{children}</table>
+    </div>
+  ),
 };
 
 interface ChatMessageProps {
