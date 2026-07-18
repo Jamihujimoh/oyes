@@ -71,6 +71,25 @@ function CodeBlock({ node, inline, className, children, ...props }: any) {
 
 const markdownComponents = {
   code: CodeBlock,
+  table: ({ children }: any) => (
+    <div className="my-6 w-full overflow-x-auto rounded-xl border border-white/10 custom-scrollbar">
+      <table className="w-full border-collapse text-[13px]">{children}</table>
+    </div>
+  ),
+  thead: ({ children }: any) => <thead className="bg-white/5">{children}</thead>,
+  tr: ({ children }: any) => (
+    <tr className="border-b border-white/5 last:border-b-0 even:bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+      {children}
+    </tr>
+  ),
+  th: ({ children }: any) => (
+    <th className="px-4 py-3 text-left font-black uppercase tracking-wider text-[11px] text-primary whitespace-nowrap">
+      {children}
+    </th>
+  ),
+  td: ({ children }: any) => (
+    <td className="px-4 py-3 text-white/80 font-medium align-top">{children}</td>
+  ),
   img: ({ src, alt }: any) => (
     <div className="relative my-4 rounded-xl overflow-hidden border border-white/10 max-w-md bg-black/20 shadow-lg">
       <img src={src} alt={alt || "Visual Payload"} className="object-cover w-full h-auto max-h-[300px]" loading="lazy" />
