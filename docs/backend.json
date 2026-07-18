@@ -1,0 +1,87 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "type": "object",
+      "description": "User profile information including display name, avatar, and status.",
+      "properties": {
+        "username": { "type": "string" },
+        "status": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "bio": { "type": "string" },
+        "roles": { "type": "array", "items": { "type": "string" } },
+        "syncRate": { "type": "number" },
+        "isVerifiedCreator": { "type": "boolean", "description": "True if the user has passed the Jimoh Jamihu security handshake." },
+        "isBanned": { "type": "boolean", "description": "True if the user failed the security handshake." }
+      }
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "type": "object",
+      "description": "A metadata record for a chat conversation.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "type": "object",
+      "description": "An individual message within a chat session.",
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string", "description": "Optional data URI of an image attached to the message." },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "StudioProject": {
+      "title": "StudioProject",
+      "type": "object",
+      "description": "A programmatic asset repository containing multiple files.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "content": { "type": "string" },
+              "language": { "type": "string" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["password", "anonymous"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/backend/entities/UserProfile",
+      "description": "User profile settings including bio and roles."
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": "#/backend/entities/StudioProject",
+      "description": "Programmatic code repositories for the Jimskay Studio."
+    },
+    "/users/{userId}/chats/{chatId}": {
+      "schema": "#/backend/entities/ChatSession",
+      "description": "Metadata for a specific chat session."
+    },
+    "/users/{userId}/chats/{chatId}/messages/{messageId}": {
+      "schema": "#/backend/entities/ChatMessage",
+      "description": "Messages belonging to a specific chat session."
+    }
+  }
+}

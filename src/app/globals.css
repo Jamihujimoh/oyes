@@ -1,0 +1,99 @@
+@import url('https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 230 35% 2%;
+    --foreground: 47 100% 98%;
+    --card: 230 35% 3%;
+    --card-foreground: 47 100% 95%;
+    --popover: 230 35% 3%;
+    --popover-foreground: 47 100% 95%;
+    --primary: 47 100% 50%;
+    --primary-foreground: 47 100% 5%;
+    --secondary: 47 30% 10%;
+    --secondary-foreground: 47 100% 90%;
+    --muted: 47 30% 5%;
+    --muted-foreground: 47 50% 40%;
+    --accent: 35 100% 50%;
+    --accent-foreground: 35 100% 5%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 47 100% 15%;
+    --input: 47 100% 10%;
+    --ring: 47 100% 50%;
+    --radius: 1.25rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-background text-foreground font-sans selection:bg-primary/30;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(47, 100% , 50%, 0.15) 0, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(35, 100%, 50%, 0.1) 0, transparent 50%);
+    background-attachment: fixed;
+    height: 100dvh;
+    overflow: hidden;
+  }
+}
+
+.perspective-matrix {
+  perspective: 2000px;
+}
+
+.scanline-effect::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(255, 215, 0, 0.04) 50%, transparent 100%);
+  background-size: 100% 4px;
+  animation: scanline 10s linear infinite;
+  pointer-events: none; z-index: 50;
+}
+
+@keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+
+.glass-panel {
+  @apply bg-card/80 backdrop-blur-3xl border border-primary/10;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8);
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, rgba(255,215,0,0.6) 0%, rgba(255,255,255,1) 50%, rgba(255,215,0,0.6) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer { to { background-position: 200% center; } }
+
+.glow-primary { box-shadow: 0 0 40px -5px hsla(47, 100%, 50%, 0.7); }
+.glow-accent { box-shadow: 0 0 40px -5px hsla(35, 100% , 50%, 0.6); }
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-primary/40 rounded-full; }
+
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 40s linear infinite; }
+
+.markdown-content { @apply w-full; word-break: break-word; }
+.markdown-content table { @apply w-full border-collapse my-8 text-[13px] overflow-hidden; background: rgba(255, 255, 255, 0.01); }
+.markdown-content th { @apply border border-white/5 bg-white/5 p-4 text-left font-black uppercase text-primary; }
+.markdown-content td { @apply border border-white/5 p-4 text-white/80 font-bold leading-relaxed; }
+
+/* ABSOLUTE WORKSPACE FORGE STYLES */
+.editor-container { @apply flex flex-1 min-h-0 overflow-hidden relative bg-[#05050a] flex-row; }
+.editor-gutter { @apply w-12 border-r border-white/5 py-8 select-none shrink-0 flex flex-col bg-black/40 z-10 items-end; }
+.gutter-number { @apply text-[10px] font-mono text-white/10 h-5 flex items-center justify-end pr-3; }
+.forge-editor-root { @apply flex-1 overflow-auto custom-scrollbar py-8 px-6; }
