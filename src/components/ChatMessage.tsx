@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math'; // 👈 Added
 import rehypeKatex from 'rehype-katex'; // 👈 Added
-import { Download, Terminal, Shield, Sparkles, Cpu, Compass, Copy, Check } from 'lucide-react';
+import { Download, Terminal, Shield, Sparkles, Cpu, Compass, Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
@@ -86,7 +86,44 @@ const markdownComponents = {
       );
     }
     return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">{children}</a>;
-  }
+  },
+
+  // 👇 ADDED: Fix for paragraph spacing
+  p: ({ node, ...props }: any) => (
+    <p className="mb-4 leading-relaxed whitespace-pre-wrap last:mb-0" {...props} />
+  ),
+
+  // 👇 ADDED: Fix for Bullet and Numbered Lists
+  ul: ({ node, ...props }: any) => (
+    <ul className="list-disc list-outside ml-6 mb-4 space-y-1" {...props} />
+  ),
+  ol: ({ node, ...props }: any) => (
+    <ol className="list-decimal list-outside ml-6 mb-4 space-y-1" {...props} />
+  ),
+  li: ({ node, ...props }: any) => (
+    <li className="leading-relaxed pl-1" {...props} />
+  ),
+
+  // 👇 ADDED: Fix for Tables
+  table: ({ node, ...props }: any) => (
+    <div className="overflow-x-auto mb-4 rounded-lg border border-white/10">
+      <table className="min-w-full border-collapse text-sm" {...props} />
+    </div>
+  ),
+  thead: ({ node, ...props }: any) => (
+    <thead className="bg-white/5 border-b border-white/10 text-white/80" {...props} />
+  ),
+  th: ({ node, ...props }: any) => (
+    <th className="px-4 py-3 font-semibold text-left tracking-wider" {...props} />
+  ),
+  td: ({ node, ...props }: any) => (
+    <td className="px-4 py-3 border-t border-white/5" {...props} />
+  ),
+
+  // 👇 ADDED: Fix for Headers (H1, H2, H3) spacing
+  h1: ({ node, ...props }: any) => <h1 className="text-2xl font-bold mt-6 mb-4 text-white" {...props} />,
+  h2: ({ node, ...props }: any) => <h2 className="text-xl font-bold mt-5 mb-3 text-white" {...props} />,
+  h3: ({ node, ...props }: any) => <h3 className="text-lg font-bold mt-4 mb-2 text-white/90" {...props} />,
 };
 
 interface ChatMessageProps {
@@ -102,6 +139,8 @@ interface ChatMessageProps {
 export const ChatMessage: React.FC<ChatMessageProps> = ({ id, chatId, type, role, text, pdfPayload, imageUrl }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSwitching, setIsSwitching] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isLongUserMessage = role === 'user' && text.length > 250; // Triggers if text is over 250 characters
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
@@ -173,7 +212,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ id, chatId, type, role
   };
 
   return (
-    <div className={`flex flex-col space-y-2 max-w-[85%] ${role === 'user' ? 'self-end' : 'self-start'}`}>
+   <div className={`flex flex-col space-y-2 max-w-[99%] ${role === 'user' ? 'max-w-[60%] self-end' : 'max-w-full self-start'}`}>
       <div className={`p-4 rounded-2xl relative ${
         role === 'user' 
           ? 'bg-primary text-white rounded-tr-none' 
@@ -185,15 +224,43 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ id, chatId, type, role
             <img src={imageUrl} alt="Uploaded Segment" className="object-cover w-full h-auto max-h-[240px]" />
           </div>
         )}
+       
 
         {/* 📐 Added remarkMath & rehypeKatex down here to compile the equations */}
-        <ReactMarkdown 
-          remarkPlugins={[remarkGfm, remarkMath]} 
-          rehypePlugins={[rehypeKatex]}
-          components={markdownComponents}
+      {/* 👇 The Text Container with dynamic max-height */}
+        <div 
+          className={`relative transition-all duration-300 overflow-hidden ${
+            isLongUserMessage && !isExpanded ? 'max-h-[120px]' : 'max-h-[5000px]'
+          }`}
         >
-          {text || ""} 
-        </ReactMarkdown>
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm, remarkMath]} 
+            rehypePlugins={[rehypeKatex]}
+            components={markdownComponents}
+          >
+            {text || ""} 
+          </ReactMarkdown>
+
+          {/* Fade effect at the bottom when collapsed */}
+          {isLongUserMessage && !isExpanded && (
+            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-primary to-transparent" />
+          )}
+        </div>
+
+        {/* 👇 The Toggle Button */}
+        {isLongUserMessage && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="mt-2 flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-all self-end active:scale-95"
+            title={isExpanded ? "Show Less" : "Show More"}
+          >
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4 text-white" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-white" />
+            )}
+          </button>
+        )}
 
         {/* PDF Downloader Section */}
         {pdfPayload && (
