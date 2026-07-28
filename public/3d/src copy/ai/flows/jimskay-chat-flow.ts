@@ -7,27 +7,6 @@ import { webSearchTool } from './web-search-flow';
 import { generatePdfInMemory } from './pdf-generator-flow';
 
 // 📡 Fully validated multimodal structure accepting past and current visual components
-function formatPdfContentForTool(content: string): string {
-  let formatted = content.replace(/\|\|/g, '\n');
-  const blocks = formatted.split(/\n\n+/);
-  const parsedBlocks = blocks.map((block) => {
-    const lines = block.trim().split('\n').map((l) => l.trim()).filter(Boolean);
-    if (lines.length >= 2 && lines[0].startsWith('|') && lines[0].endsWith('|')) {
-      const headers = lines[0].split('|').map((c) => c.trim()).filter(Boolean);
-      const dataRows = lines.slice(1).filter((line) => !line.includes('---'));
-      const tableHeaderHtml = `<thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead>`;
-      const tableBodyHtml = `<tbody>${dataRows
-        .map((row) => {
-          const cells = row.split('|').map((c) => c.trim()).filter(Boolean);
-          return `<tr>${cells.map((cell) => `<td>${cell}</td>`).join('')}</tr>`;
-        })
-        .join('')}</tbody>`;
-      return `<table>${tableHeaderHtml}${tableBodyHtml}</table>`;
-    }
-    return block;
-  });
-  return parsedBlocks.join('\n\n');
-}
 const JimskayInputSchema = z.object({
   userId: z.string().optional(),
   imageUrl: z.string().optional(), 
@@ -59,14 +38,8 @@ NEURAL COGITATION PROTOCOL (THINKING ABILITY):
 
 PDF COMPILATION PROTOCOL:
 - You have direct access to the \`pdfGeneratorTool\` to compile custom PDF documents.
-- Whenever the user asks you to write a PDF, schedule, document, or timetable, call this tool instantly.
-- TABLES FORMATTING IN PDF: Use valid Markdown tables OR raw HTML <table> tags in the \`content\` field. ALWAYS separate table rows using line breaks (\\n).
-- MATH & CHEMISTRY FORMATTING IN PDF: Write math and chemical equations using LaTeX syntax enclosed in $...$ for inline or $$...$$ for blocks (e.g., $E=mc^2$ or $\\text{H}_2\\text{O}$).
-- Do NOT output any base64 tags in text. Simply summarize your work in text and inform the user their file is ready to download.
-PAGE BUDGET CONTROL:
-- If the user specifies a page count (e.g., "make this a 1-page PDF" or "keep it within 2 pages"):
-  1. Condense or expand your text, tables, and spacing to strictly fit that exact page budget.
-  2. For multi-page PDFs where you want explicit page splits, insert \`<div class='page-break'></div>\` in the \`content\` field where a new page must start.
+- Whenever the user asks you to write a PDF or timetable, call this tool instantly.
+- Do NOT output any base64 tags. Simply summarize your work in text and inform the user their file is ready to download.
 
 IMAGE DISPLAY PROTOCOL:
 - When the user asks you to search for or show an image, use the \`webSearchTool\` to find DIRECT image URLs.
@@ -163,33 +136,26 @@ export async function jimskayChat(input: z.infer<typeof JimskayInputSchema>) {
   let interceptedPdf: { base64Data: string; filename: string } | undefined = undefined;
 
   const localPdfTool = ai.defineTool(
-  {
-    name: 'pdfGeneratorTool',
-    description: 'Generates a stylized PDF document with support for rich text, KaTeX math/chemistry ($...$), and HTML/Markdown tables.',
-    inputSchema: z.object({
-      filename: z.string().describe("Descriptive slug filename ending in .pdf, e.g. timetable.pdf"),
-      title: z.string().describe("The primary title header."),
-      content: z.string().describe("The document content. Supports Markdown, LaTeX math ($...$), and Markdown or HTML tables."),
-    }),
-    outputSchema: z.object({ filename: z.string(), status: z.string() }),
-  },
-  async (toolInput) => {
-    try {
-      // Clean up and parse tables before rendering
-      const cleanContent = formatPdfContentForTool(toolInput.content);
-
-      const result = await generatePdfInMemory({
-        ...toolInput,
-        content: cleanContent,
-      });
-
-      interceptedPdf = result; 
-      return { filename: result.filename, status: "Success. Staged." };
-    } catch (err: any) {
-      return { filename: toolInput.filename, status: `Failed: ${err.message}` };
+    {
+      name: 'pdfGeneratorTool',
+      description: 'Generates a stylized PDF document of timetables, guides, schedules, or reports.',
+      inputSchema: z.object({
+        filename: z.string().describe("Descriptive slug filename ending in .pdf, e.g. timetable.pdf"),
+        title: z.string().describe("The primary title header."),
+        content: z.string().describe("The formatted content paragraphs separated by double newlines."),
+      }),
+      outputSchema: z.object({ filename: z.string(), status: z.string() }),
+    },
+    async (toolInput) => {
+      try {
+        const result = await generatePdfInMemory(toolInput);
+        interceptedPdf = result; 
+        return { filename: result.filename, status: "Success. Staged." };
+      } catch (err: any) {
+        return { filename: toolInput.filename, status: `Failed: ${err.message}` };
+      }
     }
-  }
-);
+  );
 
   const prompt = ai.definePrompt({
     name: 'jimskayChatPrompt',
