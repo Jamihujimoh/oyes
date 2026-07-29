@@ -1,4 +1,4 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -35,7 +35,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ["pdfkit"],
+  // Added chromium and puppeteer-core alongside pdfkit to prevent bundler issues
+  serverExternalPackages: ['pdfkit', '@sparticuz/chromium', 'puppeteer-core'],
 };
 
 export default nextConfig;

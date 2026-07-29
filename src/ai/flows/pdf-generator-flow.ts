@@ -56,7 +56,7 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
   const safeFilename = input.filename.endsWith('.pdf') ? input.filename : `${input.filename}.pdf`;
   const renderedContent = processMathAndChem(input.content);
 
-  // Full HTML layout styled to match your original dark theme
+  // Full HTML layout styled to match original dark theme
   const fullHtml = `
     <!DOCTYPE html>
     <html lang="en">
@@ -198,20 +198,30 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
     </html>
   `;
 
-  // Detect local environment vs production serverless cloud deployment
+  // Environment check: Development PC vs Production Cloud
   const isLocal = process.env.NODE_ENV === 'development';
 
-  const localExecutablePath =
-    process.platform === 'win32'
-      ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-      : process.platform === 'darwin'
-      ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-      : '/usr/bin/google-chrome';
+  let executablePath: string;
+  if (isLocal) {
+    executablePath =
+      process.platform === 'win32'
+        ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        : process.platform === 'darwin'
+        ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        : '/usr/bin/google-chrome';
+  } else {
+    // Production Cloud Execution (Vercel / Lambda)
+    executablePath = await chromium.executablePath(
+      'https://github.com/sparticuz/chromium/releases/download/v126.0.0/chromium-v126.0.0-pack.tar'
+    );
+  }
 
   const browser = await puppeteer.launch({
-    args: isLocal ? ['--no-sandbox', '--disable-setuid-sandbox'] : chromium.args,
+    args: isLocal 
+      ? ['--no-sandbox', '--disable-setuid-sandbox'] 
+      : [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     defaultViewport: { width: 1920, height: 1080 },
-    executablePath: isLocal ? localExecutablePath : await chromium.executablePath(),
+    executablePath,
     headless: true,
   });
 
