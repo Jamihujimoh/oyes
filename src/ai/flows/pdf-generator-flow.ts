@@ -6,6 +6,9 @@ import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import katex from 'katex';
 
+// Prevent Vercel function timeout during Chromium cold starts
+
+
 const PdfInputSchema = z.object({
   filename: z.string(),
   title: z.string(),
@@ -80,6 +83,7 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
             padding: 40px 50px;
             font-size: 13px;
             line-height: 1.6;
+            -webkit-print-color-adjust: exact;
           }
           
           /* Orange top bar */
@@ -216,18 +220,24 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
     );
   }
 
-  const browser = await puppeteer.launch({
-    args: isLocal 
-      ? ['--no-sandbox', '--disable-setuid-sandbox'] 
-      : [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    defaultViewport: { width: 1920, height: 1080 },
-    executablePath,
-    headless: true,
-  });
-
+  let browser;
   try {
+    browser = await puppeteer.launch({
+      args: isLocal 
+        ? ['--no-sandbox', '--disable-setuid-sandbox'] 
+        : [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--single-process'],
+      defaultViewport: { width: 1920, height: 1080 },
+      executablePath,
+      headless: true,
+    });
+
     const page = await browser.newPage();
-    await page.setContent(fullHtml, { waitUntil: 'domcontentloaded' });
+    
+    // Force screen media styles to keep dark background and math layout intact
+    await page.emulateMediaType('screen');
+
+    // Wait for external KaTeX stylesheet to finish downloading before capturing PDF
+    await page.setContent(fullHtml, { waitUntil: 'networkidle0'as any, timeout: 30000 });
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -239,8 +249,13 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
       base64Data: Buffer.from(pdfBuffer).toString('base64'),
       filename: safeFilename,
     };
+  } catch (err: any) {
+    console.error('PDF GENERATION ERROR:', err);
+    throw new Error(`PDF Generation Failed: ${err.message}`);
   } finally {
-    await browser.close();
+    if (browser) {
+      await browser.close();
+    }
   }
 }
 
