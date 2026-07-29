@@ -40,8 +40,9 @@ function processMathAndChem(content: string): string {
 
   // 3. Convert Markdown headers (## and ###) to <h2> / <h3>
   processed = processed
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+  .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+  .replace(/^### (.*$)/gim, '<h3>$1</h3>');
 
   // 4. Convert bold text (**text**) into <strong> tags
   processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
