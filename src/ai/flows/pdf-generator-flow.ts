@@ -2,7 +2,8 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import katex from 'katex';
 
 const PdfInputSchema = z.object({
@@ -16,8 +17,8 @@ const PdfInputSchema = z.object({
  * Pre-processes string content to convert LaTeX math & chemistry formulas into inline KaTeX HTML.
  */
 function processMathAndChem(content: string): string {
-  // 1. Process block math/chem: $$ ... $$
-  let processed = content.replace(/\$\$(.*?)\$\$/gs, (_, tex) => {
+  // 1. Process block math/chem: $$ ... $$ (using [\s\S] for cross-version compatibility)
+  let processed = content.replace(/\$\$([\s\S]*?)\$\$/g, (_, tex) => {
     try {
       return `<div class="math-block">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`;
     } catch {
@@ -55,7 +56,7 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
   const safeFilename = input.filename.endsWith('.pdf') ? input.filename : `${input.filename}.pdf`;
   const renderedContent = processMathAndChem(input.content);
 
-  // Full HTML layout styled to match your original PDFKit dark theme
+  // Full HTML layout styled to match your original dark theme
   const fullHtml = `
     <!DOCTYPE html>
     <html lang="en">
@@ -128,6 +129,8 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
             border-radius: 6px;
             text-align: center;
             overflow-x: auto;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
 
           /* Tables */
@@ -138,6 +141,7 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
             background-color: #161b22;
             border-radius: 6px;
             overflow: hidden;
+            page-break-inside: auto;
           }
           th {
             background-color: #1f242d;
@@ -154,6 +158,10 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
             color: #c9d1d9;
             font-size: 12px;
           }
+          tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
           tr:nth-child(even) td {
             background-color: #0d1117;
           }
@@ -165,6 +173,16 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
           }
           li {
             margin-bottom: 4px;
+          }
+
+          /* Page Break Controls */
+          .page-break {
+            page-break-before: always;
+            break-before: page;
+          }
+          h1, h2, h3 {
+            page-break-after: avoid;
+            break-after: avoid;
           }
         </style>
       </head>
@@ -180,10 +198,21 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
     </html>
   `;
 
-  // Launch headless browser to render HTML to PDF
+  // Detect local environment vs production serverless cloud deployment
+  const isLocal = process.env.NODE_ENV === 'development';
+
+  const localExecutablePath =
+    process.platform === 'win32'
+      ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+      : process.platform === 'darwin'
+      ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      : '/usr/bin/google-chrome';
+
   const browser = await puppeteer.launch({
+    args: isLocal ? ['--no-sandbox', '--disable-setuid-sandbox'] : chromium.args,
+    defaultViewport: { width: 1920, height: 1080 },
+    executablePath: isLocal ? localExecutablePath : await chromium.executablePath(),
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
 
   try {
