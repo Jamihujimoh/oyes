@@ -20,7 +20,7 @@ const PdfInputSchema = z.object({
  * Pre-processes string content to convert LaTeX math & chemistry formulas into inline KaTeX HTML.
  */
 function processMathAndChem(content: string): string {
-  // 1. Process block math/chem: $$ ... $$ (using [\s\S] for cross-version compatibility)
+  // 1. Process block math/chem: $$ ... $$
   let processed = content.replace(/\$\$([\s\S]*?)\$\$/g, (_, tex) => {
     try {
       return `<div class="math-block">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`;
@@ -29,7 +29,7 @@ function processMathAndChem(content: string): string {
     }
   });
 
-  // 2. Process inline math/chem: $ ... $ (e.g. $\text{H}_2\text{O}$ or $E=mc^2$)
+  // 2. Process inline math/chem: $ ... $
   processed = processed.replace(/\$(.*?)\$/g, (_, tex) => {
     try {
       return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false });
@@ -38,10 +38,21 @@ function processMathAndChem(content: string): string {
     }
   });
 
-  // 3. Convert markdown headers (###) into standard HTML <h3> tags
-  processed = processed.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  // 3. Convert Markdown headers (## and ###) to <h2> / <h3>
+  processed = processed
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>');
 
-  // 4. Convert simple newline separations into paragraphs if not wrapped in HTML
+  // 4. Convert bold text (**text**) into <strong> tags
+  processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+  // 5. Convert Markdown bullet lists (* item) into HTML list items
+  processed = processed.replace(/^\* (.*$)/gim, '<li>$1</li>');
+
+  // Wrap contiguous <li> elements inside <ul> tags
+  processed = processed.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+
+  // 6. Convert simple line breaks into paragraphs
   if (!processed.includes('<p>') && !processed.includes('<table>')) {
     processed = processed
       .split('\n\n')
