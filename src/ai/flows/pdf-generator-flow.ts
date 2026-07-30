@@ -14,10 +14,14 @@ const PdfInputSchema = z.object({
   title: z.string(),
   // Accepts standard text, LaTeX math/chemistry ($...$ or $$...$$), and HTML tables
   content: z.string(),
+  // Optional dynamic styling parameters for AI customization
+  accentColor: z.string().optional().describe('Hex color for main accents and titles (e.g. #f0883e)'),
+  css: z.string().optional().describe('Custom CSS rules to override default document styling'),
 });
 
 /**
- * Pre-processes string content to convert LaTeX math & chemistry formulas into inline KaTeX HTML.
+ * Pre-processes string content to convert LaTeX, Markdown syntax, Bullet Lists, 
+ * and Markdown Tables into formatted HTML.
  */
 function processMathAndChem(content: string): string {
   // 1. Process block math/chem: $$ ... $$
@@ -38,26 +42,58 @@ function processMathAndChem(content: string): string {
     }
   });
 
-  // 3. Convert Markdown headers (## and ###) to <h2> / <h3>
+  // 3. Convert Markdown headers (#, ##, and ###)
   processed = processed
-  .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-  .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-  .replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>');
 
-  // 4. Convert bold text (**text**) into <strong> tags
+  // 4. Convert bold text (**text**)
   processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-  // 5. Convert Markdown bullet lists (* item) into HTML list items
-  processed = processed.replace(/^\* (.*$)/gim, '<li>$1</li>');
+  // 5. Convert Markdown bullet lists (* item or - item) and group in single <ul>
+  processed = processed.replace(/^[\*\-] (.*$)/gim, '<li>$1</li>');
+  processed = processed.replace(/(?:<li>[\s\S]*?<\/li>\s*)+/g, (match) => `<ul>${match}</ul>`);
 
-  // Wrap contiguous <li> elements inside <ul> tags
-  processed = processed.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
+  // 6. Convert Markdown Tables (| Header | ... |) to <table> HTML
+  const markdownTableRegex = /((?:\|[^\n]+\|\r?\n)+)/g;
+  processed = processed.replace(markdownTableRegex, (match) => {
+    const lines = match.trim().split('\n').filter((line) => line.trim().startsWith('|'));
+    if (lines.length < 2) return match;
 
-  // 6. Convert simple line breaks into paragraphs
-  if (!processed.includes('<p>') && !processed.includes('<table>')) {
+    let html = '<table>';
+    lines.forEach((line, index) => {
+      // Ignore separator row (e.g., |---|---|)
+      if (line.includes('---')) return;
+
+      const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+
+      if (index === 0) {
+        html += '<thead><tr>' + cells.map((c) => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+      } else {
+        html += '<tr>' + cells.map((c) => `<td>${c}</td>`).join('') + '</tr>';
+      }
+    });
+    html += '</tbody></table>';
+    return html;
+  });
+
+  // 7. Wrap simple text blocks into paragraphs, skipping structural HTML tags
+  if (!processed.includes('<p>')) {
     processed = processed
       .split('\n\n')
-      .map((p) => `<p>${p.trim()}</p>`)
+      .map((p) => {
+        const trimmed = p.trim();
+        if (
+          trimmed.startsWith('<h') ||
+          trimmed.startsWith('<ul') ||
+          trimmed.startsWith('<table') ||
+          trimmed.startsWith('<div')
+        ) {
+          return trimmed;
+        }
+        return `<p>${trimmed}</p>`;
+      })
       .join('');
   }
 
@@ -70,8 +106,12 @@ function processMathAndChem(content: string): string {
 export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>) {
   const safeFilename = input.filename.endsWith('.pdf') ? input.filename : `${input.filename}.pdf`;
   const renderedContent = processMathAndChem(input.content);
+  
+  // Custom theme variables defined by AI or fallback to default orange accent
+  const accentColor = input.accentColor || '#f0883e';
+  const customCss = input.css || '';
 
-  // Full HTML layout styled to match original dark theme
+  // Full HTML layout styled to match dark theme with dynamic AI customization support
   const fullHtml = `
     <!DOCTYPE html>
     <html lang="en">
@@ -98,22 +138,32 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
             -webkit-print-color-adjust: exact;
           }
           
-          /* Orange top bar */
+          /* Dynamic Accent Top Bar & Glow */
           .top-bar {
-            height: 3px;
-            background-color: #f0883e;
+            height: 4px;
+            background: linear-gradient(90deg, ${accentColor}, #58a6ff);
             width: 100%;
             margin-bottom: 20px;
+            box-shadow: 0 0 10px ${accentColor};
           }
 
           /* Header & Subheader */
           h1 {
-            color: #f0883e;
+            color: ${accentColor};
             font-size: 22px;
             margin: 0 0 6px 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             font-weight: 700;
+          }
+          h2 {
+            color: ${accentColor};
+            font-size: 16px;
+            margin-top: 24px;
+            margin-bottom: 8px;
+            font-weight: 700;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 4px;
           }
           .subheader {
             color: #8b949e;
@@ -142,6 +192,7 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
             margin: 18px 0;
             padding: 12px;
             background-color: #161b22;
+            border-left: 3px solid ${accentColor};
             border-radius: 6px;
             text-align: center;
             overflow-x: auto;
@@ -191,6 +242,15 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
             margin-bottom: 4px;
           }
 
+          /* Callout box flair styling */
+          .callout {
+            background-color: #161b22;
+            border-left: 4px solid ${accentColor};
+            padding: 12px 16px;
+            margin: 16px 0;
+            border-radius: 0 6px 6px 0;
+          }
+
           /* Page Break Controls */
           .page-break {
             page-break-before: always;
@@ -200,6 +260,9 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
             page-break-after: avoid;
             break-after: avoid;
           }
+
+          /* Custom User/AI CSS Overrides */
+          ${customCss}
         </style>
       </head>
       <body>
@@ -249,7 +312,7 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
     await page.emulateMediaType('screen');
 
     // Wait for external KaTeX stylesheet to finish downloading before capturing PDF
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0'as any, timeout: 30000 });
+    await page.setContent(fullHtml, { waitUntil: 'networkidle0' as any, timeout: 30000 });
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -271,15 +334,24 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
   }
 }
 
-// Keep the Genkit tool registration intact
+// Updated Genkit Tool registration: executes PDF generation and returns base64 string
 export const pdfGeneratorTool = ai.defineTool(
   {
     name: 'pdfGeneratorTool',
-    description: 'Generates a PDF document with support for math, chemical equations, and HTML tables.',
+    description: 'Generates a PDF document with support for math, chemical equations, styled tables, and custom accent colors.',
     inputSchema: PdfInputSchema,
-    outputSchema: z.object({ filename: z.string(), status: z.string() }),
+    outputSchema: z.object({
+      filename: z.string(),
+      status: z.string(),
+      base64Data: z.string(),
+    }),
   },
   async (input) => {
-    return { filename: input.filename, status: "Staged on server memory" };
+    const result = await generatePdfInMemory(input);
+    return {
+      filename: result.filename,
+      status: 'Generated successfully',
+      base64Data: result.base64Data,
+    };
   }
 );
