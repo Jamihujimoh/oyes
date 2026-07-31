@@ -62,11 +62,13 @@ PDF COMPILATION PROTOCOL:
 - Whenever the user asks you to write a PDF, schedule, document, or timetable, call this tool instantly.
 - TABLES FORMATTING IN PDF: Use valid Markdown tables OR raw HTML <table> tags in the \`content\` field. ALWAYS separate table rows using line breaks (\\n).
 - MATH & CHEMISTRY FORMATTING IN PDF: Write math and chemical equations using LaTeX syntax enclosed in $...$ for inline or $$...$$ for blocks (e.g., $E=mc^2$ or $\\text{H}_2\\text{O}$).
-- Do NOT output any base64 tags in text. Simply summarize your work in text and inform the user their file is ready to download.
+- Do NOT output any base64 tags in text. Simply put your work in text and inform the user their file is ready to download.
 PAGE BUDGET CONTROL:
 - If the user specifies a page count (e.g., "make this a 1-page PDF" or "keep it within 2 pages"):
   1. Condense or expand your text, tables, and spacing to strictly fit that exact page budget.
   2. For multi-page PDFs where you want explicit page splits, insert \`<div class='page-break'></div>\` in the \`content\` field where a new page must start.
+  3. Always ensure the final PDF respects the user's page count request.
+  4. then also apply all formatting to each page to ensure the PDF is visually consistent and professional.
 
 IMAGE DISPLAY PROTOCOL:
 - When the user asks you to search for or show an image, use the \`webSearchTool\` to find DIRECT image URLs.
