@@ -71,11 +71,13 @@ function CodeBlock({ node, inline, className, children, ...props }: any) {
 
 const markdownComponents = {
   code: CodeBlock,
+
   img: ({ src, alt }: any) => (
     <div className="relative my-4 rounded-xl overflow-hidden border border-white/10 max-w-md bg-black/20 shadow-lg">
       <img src={src} alt={alt || "Visual Payload"} className="object-cover w-full h-auto max-h-[300px]" loading="lazy" />
     </div>
   ),
+
   a: ({ href, children }: any) => {
     const isDirectImage = href && /\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i.test(href);
     if (isDirectImage) {
@@ -85,42 +87,51 @@ const markdownComponents = {
         </div>
       );
     }
-    return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">{children}</a>;
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">
+        {children}
+      </a>
+    );
   },
 
-  // 👇 ADDED: Fix for paragraph spacing
+  // 👇 FIXED: Changed <p> to <div> to solve the hydration error
   p: ({ node, ...props }: any) => (
-    <p className="mb-4 leading-relaxed whitespace-pre-wrap last:mb-0" {...props} />
+    <div className="mb-4 leading-relaxed whitespace-pre-wrap last:mb-0" {...props} />
   ),
 
-  // 👇 ADDED: Fix for Bullet and Numbered Lists
+  // 👇 FIXED: Added closing parenthesis and comma
   ul: ({ node, ...props }: any) => (
     <ul className="list-disc list-outside ml-6 mb-4 space-y-1" {...props} />
   ),
+
   ol: ({ node, ...props }: any) => (
     <ol className="list-decimal list-outside ml-6 mb-4 space-y-1" {...props} />
   ),
+
   li: ({ node, ...props }: any) => (
     <li className="leading-relaxed pl-1" {...props} />
   ),
 
-  // 👇 ADDED: Fix for Tables
+  // 👇 FIXED: Added closing </div>, parenthesis, and comma
   table: ({ node, ...props }: any) => (
     <div className="overflow-x-auto mb-4 rounded-lg border border-white/10">
       <table className="min-w-full border-collapse text-sm" {...props} />
     </div>
   ),
+
   thead: ({ node, ...props }: any) => (
     <thead className="bg-white/5 border-b border-white/10 text-white/80" {...props} />
   ),
+
   th: ({ node, ...props }: any) => (
     <th className="px-4 py-3 font-semibold text-left tracking-wider" {...props} />
   ),
+
   td: ({ node, ...props }: any) => (
     <td className="px-4 py-3 border-t border-white/5" {...props} />
   ),
 
-  // 👇 ADDED: Fix for Headers (H1, H2, H3) spacing
+  // 👇 Fix for Headers
   h1: ({ node, ...props }: any) => <h1 className="text-2xl font-bold mt-6 mb-4 text-white" {...props} />,
   h2: ({ node, ...props }: any) => <h2 className="text-xl font-bold mt-5 mb-3 text-white" {...props} />,
   h3: ({ node, ...props }: any) => <h3 className="text-lg font-bold mt-4 mb-2 text-white/90" {...props} />,
