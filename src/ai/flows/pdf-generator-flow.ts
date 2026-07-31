@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import katex from 'katex';
 
-// Prevent Vercel function timeout during Chromium cold starts
+// Export maxDuration for Next.js / Serverless runtimes where supported
 
 
 const PdfInputSchema = z.object({
@@ -111,15 +111,26 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
   const accentColor = input.accentColor || '#f0883e';
   const customCss = input.css || '';
 
-  // Full HTML layout styled to match dark theme with dynamic AI customization support
+  // Minimal critical inline CSS for KaTeX layout so external CDN call is completely removed
+  const katexInlineCss = `
+    .katex { font: normal 1.21em KaTeX_Main, Times New Roman, serif; line-height: 1.2; text-indent: 0; }
+    .katex .katex-html { display: inline-block; }
+    .katex .katex-html > .newline { display: block; }
+    .katex .base { display: inline-block; white-space: nowrap; width: min-content; }
+    .katex .strut { display: inline-block; }
+    .katex-display { display: block; margin: 1em 0; text-align: center; }
+    .katex-display > .katex { display: block; text-align: center; }
+  `;
+
+  // Full HTML layout styled to match dark theme
   const fullHtml = `
     <!DOCTYPE html>
     <html lang="en">
       <head>
         <meta charset="UTF-8" />
-        <!-- KaTeX CSS for rendered math and chemical equations -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css" />
         <style>
+          ${katexInlineCss}
+
           @page {
             size: A4;
             margin: 0;
@@ -289,7 +300,7 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
         ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
         : '/usr/bin/google-chrome';
   } else {
-    // Production Cloud Execution (Vercel / Lambda)
+    // Production Cloud Execution (Netlify / Vercel / Lambda)
     executablePath = await chromium.executablePath(
       'https://github.com/sparticuz/chromium/releases/download/v126.0.0/chromium-v126.0.0-pack.tar'
     );
@@ -300,7 +311,14 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
     browser = await puppeteer.launch({
       args: isLocal 
         ? ['--no-sandbox', '--disable-setuid-sandbox'] 
-        : [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--single-process'],
+        : [
+            ...chromium.args, 
+            '--no-sandbox', 
+            '--disable-setuid-sandbox', 
+            '--disable-dev-shm-usage', 
+            '--disable-gpu', 
+            '--single-process'
+          ],
       defaultViewport: { width: 1920, height: 1080 },
       executablePath,
       headless: true,
@@ -311,8 +329,8 @@ export async function generatePdfInMemory(input: z.infer<typeof PdfInputSchema>)
     // Force screen media styles to keep dark background and math layout intact
     await page.emulateMediaType('screen');
 
-    // Wait for external KaTeX stylesheet to finish downloading before capturing PDF
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0' as any, timeout: 30000 });
+    // 👇 OPTIMIZED: Changed waitUntil to 'domcontentloaded' to avoid waiting for network idling timeouts
+    await page.setContent(fullHtml, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
